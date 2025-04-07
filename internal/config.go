@@ -37,12 +37,36 @@ func (c *Config) SetUser() error {
 		return fmt.Errorf("no username found")
 	}
 	c.Current_user = username
+	if err := writeConfig(c); err != nil {
+		return err
+	}
 	return nil
 
 }
 
-func writeConfig(config Config) error {
+func writeConfig(config *Config) error {
+	configFile, err := getConfigFilePath()
+	if err != nil {
+		return err
+	}
+	jsonData, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("cannot convert to json")
+	}
+	file, err := os.Create(configFile)
+	if err != nil {
+		fmt.Println("Error creating file:", err)
+		return err
+	}
+	defer file.Close()
 
+	// Write the JSON data to the file
+	_, err = file.Write(jsonData)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return err
+	}
+	return nil
 }
 
 func getConfigFilePath() (string, error) {
