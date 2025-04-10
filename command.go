@@ -5,10 +5,12 @@ import (
 	"os"
 
 	config "github.com/aklantan/blog_aggregator/internal"
+	"github.com/aklantan/blog_aggregator/internal/database"
 )
 
 type state struct {
 	configuration *config.Config
+	db            *database.Queries
 }
 
 type command struct {

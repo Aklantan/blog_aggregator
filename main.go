@@ -5,6 +5,7 @@ import (
 	"os"
 
 	config "github.com/aklantan/blog_aggregator/internal"
+	_ "github.com/lib/pq"
 )
 
 func main() {
