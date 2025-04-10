@@ -37,14 +37,14 @@ func (c *Config) SetUser() error {
 		return fmt.Errorf("no username found")
 	}
 	c.Current_user = username
-	if err := writeConfig(c); err != nil {
+	if err := WriteConfig(c); err != nil {
 		return err
 	}
 	return nil
 
 }
 
-func writeConfig(config *Config) error {
+func WriteConfig(config *Config) error {
 	configFile, err := getConfigFilePath()
 	if err != nil {
 		return err
