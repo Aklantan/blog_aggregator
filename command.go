@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	config "github.com/aklantan/blog_aggregator/internal"
 	"github.com/aklantan/blog_aggregator/internal/database"
+	"github.com/google/uuid"
 )
 
 type state struct {
@@ -44,12 +47,34 @@ func handlerLogin(s *state, cmd command) error {
 		os.Exit(1)
 		return fmt.Errorf("no username provided")
 	}
+	_, err := s.db.GetUser(context.Background(), cmd.arguments[0])
+	if err != nil {
+		fmt.Printf("% v", err)
+		os.Exit(1)
+	}
 	s.configuration.Current_user = cmd.arguments[0]
-	err := config.WriteConfig(s.configuration) // Make sure you're passing the config correctly
+	err = config.WriteConfig(s.configuration) // Make sure you're passing the config correctly
 	if err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 	fmt.Println("User has been set")
 
 	return nil
+}
+
+func handlerRegister(s *state, cmd command) error {
+	if len(cmd.arguments) == 0 {
+		fmt.Println("new user requires a name")
+		os.Exit(1)
+		return fmt.Errorf("no username provided")
+	}
+	user, err := s.db.CreateUser(context.Background(), database.CreateUserParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), Name: cmd.arguments[0]})
+	if err != nil {
+		fmt.Printf("User already exists %v\n", err)
+		os.Exit(1)
+	}
+	s.configuration.Current_user = user.Name
+	fmt.Printf(" %v %v %v %v", user.ID, user.Name, user.CreatedAt, user.UpdatedAt)
+	return nil
+
 }
