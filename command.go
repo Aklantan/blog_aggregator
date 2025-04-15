@@ -78,3 +78,62 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 
 }
+
+func handlerReset(s *state, cmd command) error {
+	err := s.db.ResetUsers(context.Background())
+	if err != nil {
+		fmt.Printf("Cannot reset users table : %v", err)
+	}
+	return nil
+}
+
+func handlerListUsers(s *state, cmd command) error {
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		fmt.Printf("Unable to list users : %v\n", err)
+	}
+
+	for _, user := range users {
+		if user.Name == s.configuration.Current_user {
+			fmt.Printf("%s (current)\n", user.Name)
+		} else {
+			fmt.Printf("%s\n", user.Name)
+		}
+	}
+	return nil
+
+}
+
+func handlerAgg(s *state, cmd command) error {
+	/*if len(cmd.arguments) == 0 {
+		fmt.Println("must provide Url")
+		os.Exit(1)
+	}
+	*/
+	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml") // cmd.arguments[0]
+	if err != nil {
+		fmt.Println("unable to fetch the feed")
+		os.Exit(1)
+	}
+	fmt.Println(feed)
+	return nil
+}
+
+func handlerAddFeed(s *state, cmd command) error {
+	user, err := s.db.GetUser(context.Background(), s.configuration.Current_user)
+	if err != nil {
+		fmt.Println("user cannot be retrieved")
+		os.Exit(1)
+	}
+	if len(cmd.arguments) < 2 {
+		fmt.Println("must provide name and Url")
+		os.Exit(1)
+	}
+	feed, err := s.db.CreateFeed(context.Background(), database.CreateFeedParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), Name: cmd.arguments[0], Url: cmd.arguments[1], UserID: user.ID})
+	if err != nil {
+		fmt.Printf("Cannot add feed to DB : %v", err)
+		os.Exit(1)
+	}
+	fmt.Printf(" %v %v %v %v %v %v\n", feed.ID, feed.Name, feed.CreatedAt, feed.UpdatedAt, feed.Url, feed.UserID)
+	return nil
+}
