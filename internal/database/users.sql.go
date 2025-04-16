@@ -90,6 +90,51 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const getFeedUser = `-- name: GetFeedUser :one
+SELECT name FROM users
+WHERE id = $1
+`
+
+func (q *Queries) GetFeedUser(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, getFeedUser, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
+const getFeeds = `-- name: GetFeeds :many
+SELECT user_id, name, url FROM feeds
+`
+
+type GetFeedsRow struct {
+	UserID uuid.UUID
+	Name   string
+	Url    string
+}
+
+func (q *Queries) GetFeeds(ctx context.Context) ([]GetFeedsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getFeeds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFeedsRow
+	for rows.Next() {
+		var i GetFeedsRow
+		if err := rows.Scan(&i.UserID, &i.Name, &i.Url); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, created_at, updated_at, name FROM users
 WHERE name = $1

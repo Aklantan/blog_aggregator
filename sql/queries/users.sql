@@ -30,3 +30,10 @@ VALUES (
     $6
 )
 RETURNING *;
+
+-- name: GetFeeds :many
+SELECT user_id, name, url FROM feeds;
+
+-- name: GetFeedUser :one
+SELECT name FROM users
+WHERE id = $1;

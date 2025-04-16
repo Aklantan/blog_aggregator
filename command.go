@@ -137,3 +137,20 @@ func handlerAddFeed(s *state, cmd command) error {
 	fmt.Printf(" %v %v %v %v %v %v\n", feed.ID, feed.Name, feed.CreatedAt, feed.UpdatedAt, feed.Url, feed.UserID)
 	return nil
 }
+
+func handlerFeeds(s *state, cmd command) error {
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		fmt.Printf("cannot retrieve feeds %v", err)
+	}
+
+	for _, feed := range feeds {
+		user, err := s.db.GetFeedUser(context.Background(), feed.UserID)
+		if err != nil {
+			fmt.Printf("cannot get feed creator : %v", err)
+		}
+		fmt.Printf("user : %v\n", user)
+		fmt.Printf("name : %v\n url : %v\n", feed.Name, feed.Url)
+	}
+	return nil
+}
