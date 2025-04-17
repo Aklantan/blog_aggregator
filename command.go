@@ -74,7 +74,7 @@ func handlerRegister(s *state, cmd command) error {
 		os.Exit(1)
 	}
 	s.configuration.Current_user = user.Name
-	fmt.Printf(" %v %v %v %v", user.ID, user.Name, user.CreatedAt, user.UpdatedAt)
+	fmt.Printf(" %v %v %v %v\n", user.ID, user.Name, user.CreatedAt, user.UpdatedAt)
 	return nil
 
 }
@@ -152,5 +152,31 @@ func handlerFeeds(s *state, cmd command) error {
 		fmt.Printf("user : %v\n", user)
 		fmt.Printf("name : %v\n url : %v\n", feed.Name, feed.Url)
 	}
+	return nil
+}
+
+func handlerFollow(s *state, cmd command) error {
+	if len(cmd.arguments) < 1 {
+		fmt.Println("url required")
+		os.Exit(1)
+		return fmt.Errorf("no username provided")
+	}
+	user, err := s.db.GetUser(context.Background(), s.configuration.Current_user)
+	if err != nil {
+		fmt.Println("user cannot be retrieved")
+		os.Exit(1)
+	}
+	feed, err := s.db.GetFeedbyUrl(context.Background(), cmd.arguments[0])
+	if err != nil {
+		fmt.Println("feed cannot be retrieved")
+		os.Exit(1)
+	}
+
+	_, err = s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), UserID: user.ID, FeedID: feed.ID})
+	if err != nil {
+		fmt.Printf("cannot add feed to follow list for user : %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("%v %v\n", user.Name, feed.Name)
 	return nil
 }
