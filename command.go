@@ -163,7 +163,7 @@ func handlerFollow(s *state, cmd command) error {
 	}
 	user, err := s.db.GetUser(context.Background(), s.configuration.Current_user)
 	if err != nil {
-		fmt.Println("user cannot be retrieved")
+		fmt.Printf("user cannot be retrieved : %v\n", err)
 		os.Exit(1)
 	}
 	feed, err := s.db.GetFeedbyUrl(context.Background(), cmd.arguments[0])
@@ -178,5 +178,22 @@ func handlerFollow(s *state, cmd command) error {
 		os.Exit(1)
 	}
 	fmt.Printf("%v %v\n", user.Name, feed.Name)
+	return nil
+}
+
+func handlerFollowing(s *state, cmd command) error {
+	user, err := s.db.GetUser(context.Background(), s.configuration.Current_user)
+	if err != nil {
+		fmt.Printf("no user named %v : %v\n", user.Name, err)
+	}
+	following, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
+	if err != nil {
+		fmt.Printf("cannot collect follows : %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("test")
+	for _, feed := range following {
+		fmt.Printf("%v", feed.Name)
+	}
 	return nil
 }
