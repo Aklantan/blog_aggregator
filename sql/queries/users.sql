@@ -14,7 +14,7 @@ WHERE name = $1;
 
 
 -- name: ResetUsers :exec
-TRUNCATE TABLE users, feeds;
+TRUNCATE TABLE users, feeds,feed_follows;
 
 -- name: GetUsers :many
 SELECT id, created_at, updated_at, name FROM users;
@@ -72,4 +72,20 @@ INNER JOIN feeds
 ON feed_follows.feed_id = feeds.id
 INNER JOIN users
 ON feed_follows.user_id = users.id
-WHERE feed_follows.id = $1;
+WHERE feed_follows.user_id = $1;
+
+-- name: DeleteFeedFollow :exec
+DELETE FROM feed_follows
+WHERE user_id = (
+    SELECT id FROM users WHERE users.name = $1
+)
+AND feed_id = (
+    SELECT id FROM feeds WHERE url = $2
+);
+
+-- name: MarkFeedFetched :exec
+UPDATE feeds
+SET updated_at = (NOW()), last_fetched_at = (NOW())
+WHERE id = $1;
+
+-- name: GetNextFeedToFetch :one

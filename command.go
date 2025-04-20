@@ -119,12 +119,8 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
-	user, err := s.db.GetUser(context.Background(), s.configuration.Current_user)
-	if err != nil {
-		fmt.Println("user cannot be retrieved")
-		os.Exit(1)
-	}
+func handlerAddFeed(s *state, cmd command, user database.User) error {
+
 	if len(cmd.arguments) < 2 {
 		fmt.Println("must provide name and Url")
 		os.Exit(1)
@@ -132,6 +128,11 @@ func handlerAddFeed(s *state, cmd command) error {
 	feed, err := s.db.CreateFeed(context.Background(), database.CreateFeedParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), Name: cmd.arguments[0], Url: cmd.arguments[1], UserID: user.ID})
 	if err != nil {
 		fmt.Printf("Cannot add feed to DB : %v", err)
+		os.Exit(1)
+	}
+	_, err = s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), UserID: user.ID, FeedID: feed.ID})
+	if err != nil {
+		fmt.Printf("cannot add feed to follow list for user : %v\n", err)
 		os.Exit(1)
 	}
 	fmt.Printf(" %v %v %v %v %v %v\n", feed.ID, feed.Name, feed.CreatedAt, feed.UpdatedAt, feed.Url, feed.UserID)
@@ -155,17 +156,13 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.arguments) < 1 {
 		fmt.Println("url required")
 		os.Exit(1)
 		return fmt.Errorf("no username provided")
 	}
-	user, err := s.db.GetUser(context.Background(), s.configuration.Current_user)
-	if err != nil {
-		fmt.Printf("user cannot be retrieved : %v\n", err)
-		os.Exit(1)
-	}
+
 	feed, err := s.db.GetFeedbyUrl(context.Background(), cmd.arguments[0])
 	if err != nil {
 		fmt.Println("feed cannot be retrieved")
@@ -181,19 +178,44 @@ func handlerFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollowing(s *state, cmd command) error {
-	user, err := s.db.GetUser(context.Background(), s.configuration.Current_user)
-	if err != nil {
-		fmt.Printf("no user named %v : %v\n", user.Name, err)
-	}
+func handlerFollowing(s *state, cmd command, user database.User) error {
+
 	following, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
 	if err != nil {
 		fmt.Printf("cannot collect follows : %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("test")
+
 	for _, feed := range following {
-		fmt.Printf("%v", feed.Name)
+		fmt.Printf("%v\n", feed.Name)
 	}
 	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.arguments) != 1 {
+		fmt.Println("no username provided")
+		os.Exit(1)
+		return fmt.Errorf("no username provided")
+	}
+	err := s.db.DeleteFeedFollow(context.Background(), database.DeleteFeedFollowParams{Name: user.Name, Url: cmd.arguments[0]})
+	if err != nil {
+		fmt.Printf("cannot delete follow : %v\n", err)
+	}
+	return nil
+
+}
+
+//--------------- MIDDLEWARE -------------------------------
+
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+
+	return func(s *state, cmd command) error {
+		user, err := s.db.GetUser(context.Background(), s.configuration.Current_user)
+		if err != nil {
+			fmt.Println("user cannot be retrieved")
+			return err
+		}
+		return handler(s, cmd, user)
+	}
 }
