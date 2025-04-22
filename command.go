@@ -105,17 +105,22 @@ func handlerListUsers(s *state, cmd command) error {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	/*if len(cmd.arguments) == 0 {
-		fmt.Println("must provide Url")
+	if len(cmd.arguments) == 0 {
+		fmt.Println("must provide time between reqs")
 		os.Exit(1)
 	}
-	*/
-	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml") // cmd.arguments[0]
+	frequency, err := time.ParseDuration(cmd.arguments[0])
 	if err != nil {
-		fmt.Println("unable to fetch the feed")
+		fmt.Printf("cannot parse as a time")
 		os.Exit(1)
 	}
-	fmt.Println(feed)
+
+	fmt.Printf("Collecting feeds every %v\n", frequency)
+
+	ticker := time.NewTicker(frequency)
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
+	}
 	return nil
 }
 

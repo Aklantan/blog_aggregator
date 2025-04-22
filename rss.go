@@ -64,3 +64,25 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	return &feed, nil
 
 }
+
+func scrapeFeeds(s *state) {
+	nxtFeed, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		fmt.Printf("cannot get next feed\n", err)
+		return
+	}
+	err = s.db.MarkFeedFetched(context.Background(), nxtFeed.ID)
+	if err != nil {
+		fmt.Println("cannot mark feed fetched")
+		return
+	}
+	fetchedFeed, err := fetchFeed(context.Background(), nxtFeed.Url)
+	if err != nil {
+		fmt.Println("cannot fetch feeds")
+		return
+	}
+	for _, item := range fetchedFeed.Channel.Item {
+		fmt.Printf("title : %v\n", item.Title)
+
+	}
+}

@@ -314,6 +314,26 @@ func (q *Queries) GetFeeds(ctx context.Context) ([]GetFeedsRow, error) {
 	return items, nil
 }
 
+const getNextFeedToFetch = `-- name: GetNextFeedToFetch :one
+SELECT name, url, id 
+FROM feeds
+ORDER BY last_fetched_at ASC NULLS FIRST
+FETCH FIRST 1 ROW ONLY
+`
+
+type GetNextFeedToFetchRow struct {
+	Name string
+	Url  string
+	ID   uuid.UUID
+}
+
+func (q *Queries) GetNextFeedToFetch(ctx context.Context) (GetNextFeedToFetchRow, error) {
+	row := q.db.QueryRowContext(ctx, getNextFeedToFetch)
+	var i GetNextFeedToFetchRow
+	err := row.Scan(&i.Name, &i.Url, &i.ID)
+	return i, err
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, created_at, updated_at, name FROM users
 WHERE name = $1
