@@ -14,7 +14,7 @@ WHERE name = $1;
 
 
 -- name: ResetUsers :exec
-TRUNCATE TABLE users, feeds,feed_follows;
+TRUNCATE TABLE users, feeds,feed_follows, posts;
 
 -- name: GetUsers :many
 SELECT id, created_at, updated_at, name FROM users;
@@ -93,3 +93,27 @@ SELECT name, url, id
 FROM feeds
 ORDER BY last_fetched_at ASC NULLS FIRST
 FETCH FIRST 1 ROW ONLY;
+
+-- name: CreatePost :one
+INSERT INTO posts (id,created_at,updated_at,title,url,description,published_at,feed_id)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8
+)
+RETURNING *;
+
+-- name: GetPostsForUser :many
+SELECT p.title, p.url, p.published_at, p.description
+FROM posts p
+JOIN feeds f ON p.feed_id = f.id
+JOIN feed_follows fw ON f.id = fw.feed_id
+WHERE fw.user_id = $1
+ORDER BY published_at DESC
+LIMIT $2;
+

@@ -2,11 +2,17 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
 	"fmt"
 	"html"
 	"io"
 	"net/http"
+	"time"
+
+	"github.com/aklantan/blog_aggregator/internal/database"
+	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 type RSSFeed struct {
@@ -82,7 +88,41 @@ func scrapeFeeds(s *state) {
 		return
 	}
 	for _, item := range fetchedFeed.Channel.Item {
-		fmt.Printf("title : %v\n", item.Title)
+		title := sql.NullString{String: item.Title, Valid: true}       // convert title to NullStr
+		descr := sql.NullString{String: item.Description, Valid: true} // convert description to NullStr
 
+		dateFormats := []string{
+			"Mon, 02 Jan 2006 15:04:05 MST", // RSS 2.0 format
+			"2006-01-02T15:04:05Z",          // ISO 8601
+			"2006-01-02",                    // Simple YYYY-MM-DD
+		}
+
+		var parsedDate time.Time
+
+		for _, format := range dateFormats {
+			parsedDate, err = time.Parse(format, item.PubDate)
+			if err == nil {
+				break
+			}
+		}
+		if err != nil {
+			fmt.Println("unable to parse date")
+		}
+
+		_, err := s.db.CreatePost(context.Background(), database.CreatePostParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), Title: title, Description: descr, Url: item.Link, PublishedAt: parsedDate, FeedID: nxtFeed.ID})
+		if err != nil {
+			if err != nil {
+				// Check if it's a PostgreSQL error
+				if pqErr, ok := err.(*pq.Error); ok {
+					// Inspect the code for duplicate key
+					if pqErr.Code == "23505" { // Unique constraint violation code
+						fmt.Println("Duplicate post URL, ignored.")
+					}
+				}
+				// Log or handle other unexpected errors
+				fmt.Printf("unexpected error: %v", err)
+			}
+		}
 	}
+
 }

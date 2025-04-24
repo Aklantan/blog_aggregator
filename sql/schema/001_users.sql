@@ -49,6 +49,7 @@ CREATE TABLE posts(
 );
 
 -- +goose Down
+DROP TABLE posts;
 DROP TABLE feed_follows;
 DROP TABLE feeds;
 DROP TABLE users;

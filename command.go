@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	config "github.com/aklantan/blog_aggregator/internal"
@@ -207,6 +208,31 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	if err != nil {
 		fmt.Printf("cannot delete follow : %v\n", err)
 	}
+	return nil
+
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	var limit string = ""
+	if len(cmd.arguments) == 0 {
+		limit = "2"
+	} else {
+		limit = cmd.arguments[0]
+	}
+	intLimit, err := strconv.Atoi(limit)
+	if err != nil {
+		return fmt.Errorf("cannot convert to int32 : %w", err)
+	}
+
+	posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{UserID: user.ID, Limit: int32(intLimit)})
+	if err != nil {
+		return fmt.Errorf("cannot retrieve posts : %v", err)
+	}
+
+	for _, post := range posts {
+		fmt.Printf("%v\n %v\n %v\n", post.Title, post.Url, post.Description)
+	}
+
 	return nil
 
 }

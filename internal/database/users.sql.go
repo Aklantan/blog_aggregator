@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -132,6 +133,57 @@ func (q *Queries) CreateFeedFollow(ctx context.Context, arg CreateFeedFollowPara
 		return nil, err
 	}
 	return items, nil
+}
+
+const createPost = `-- name: CreatePost :one
+INSERT INTO posts (id,created_at,updated_at,title,url,description,published_at,feed_id)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8
+)
+RETURNING id, created_at, updated_at, title, url, description, published_at, feed_id
+`
+
+type CreatePostParams struct {
+	ID          uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Title       sql.NullString
+	Url         string
+	Description sql.NullString
+	PublishedAt time.Time
+	FeedID      uuid.UUID
+}
+
+func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, error) {
+	row := q.db.QueryRowContext(ctx, createPost,
+		arg.ID,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.Title,
+		arg.Url,
+		arg.Description,
+		arg.PublishedAt,
+		arg.FeedID,
+	)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Title,
+		&i.Url,
+		&i.Description,
+		&i.PublishedAt,
+		&i.FeedID,
+	)
+	return i, err
 }
 
 const createUser = `-- name: CreateUser :one
@@ -334,6 +386,56 @@ func (q *Queries) GetNextFeedToFetch(ctx context.Context) (GetNextFeedToFetchRow
 	return i, err
 }
 
+const getPostsForUser = `-- name: GetPostsForUser :many
+SELECT p.title, p.url, p.published_at, p.description
+FROM posts p
+JOIN feeds f ON p.feed_id = f.id
+JOIN feed_follows fw ON f.id = fw.feed_id
+WHERE fw.user_id = $1
+ORDER BY published_at DESC
+LIMIT $2
+`
+
+type GetPostsForUserParams struct {
+	UserID uuid.UUID
+	Limit  int32
+}
+
+type GetPostsForUserRow struct {
+	Title       sql.NullString
+	Url         string
+	PublishedAt time.Time
+	Description sql.NullString
+}
+
+func (q *Queries) GetPostsForUser(ctx context.Context, arg GetPostsForUserParams) ([]GetPostsForUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPostsForUser, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPostsForUserRow
+	for rows.Next() {
+		var i GetPostsForUserRow
+		if err := rows.Scan(
+			&i.Title,
+			&i.Url,
+			&i.PublishedAt,
+			&i.Description,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, created_at, updated_at, name FROM users
 WHERE name = $1
@@ -395,7 +497,7 @@ func (q *Queries) MarkFeedFetched(ctx context.Context, id uuid.UUID) error {
 }
 
 const resetUsers = `-- name: ResetUsers :exec
-TRUNCATE TABLE users, feeds,feed_follows
+TRUNCATE TABLE users, feeds,feed_follows, posts
 `
 
 func (q *Queries) ResetUsers(ctx context.Context) error {
